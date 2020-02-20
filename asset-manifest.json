@@ -1,0 +1,22 @@
+{
+  "files": {
+    "main.css": "/fcc-dungeon-crawler/static/css/main.3435256b.chunk.css",
+    "main.js": "/fcc-dungeon-crawler/static/js/main.829be065.chunk.js",
+    "main.js.map": "/fcc-dungeon-crawler/static/js/main.829be065.chunk.js.map",
+    "runtime-main.js": "/fcc-dungeon-crawler/static/js/runtime-main.b1813661.js",
+    "runtime-main.js.map": "/fcc-dungeon-crawler/static/js/runtime-main.b1813661.js.map",
+    "static/js/2.f9ddd20b.chunk.js": "/fcc-dungeon-crawler/static/js/2.f9ddd20b.chunk.js",
+    "static/js/2.f9ddd20b.chunk.js.map": "/fcc-dungeon-crawler/static/js/2.f9ddd20b.chunk.js.map",
+    "index.html": "/fcc-dungeon-crawler/index.html",
+    "precache-manifest.291e0b865e15066b3bd7c62a0274f778.js": "/fcc-dungeon-crawler/precache-manifest.291e0b865e15066b3bd7c62a0274f778.js",
+    "service-worker.js": "/fcc-dungeon-crawler/service-worker.js",
+    "static/css/main.3435256b.chunk.css.map": "/fcc-dungeon-crawler/static/css/main.3435256b.chunk.css.map",
+    "static/js/2.f9ddd20b.chunk.js.LICENSE.txt": "/fcc-dungeon-crawler/static/js/2.f9ddd20b.chunk.js.LICENSE.txt"
+  },
+  "entrypoints": [
+    "static/js/runtime-main.b1813661.js",
+    "static/js/2.f9ddd20b.chunk.js",
+    "static/css/main.3435256b.chunk.css",
+    "static/js/main.829be065.chunk.js"
+  ]
+}
