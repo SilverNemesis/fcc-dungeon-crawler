@@ -1,267 +1,208 @@
-const _directions = [
-  { x: -1, y: 0 },
-  { x: 0, y: -1 },
-  { x: 1, y: 0 },
-  { x: 0, y: 1 }
-];
+export function generateDungeon(width, height) {
+  width = _makeOdd(width);
+  height = _makeOdd(height);
 
-// based on this article https://journal.stuffwithstuff.com/2014/12/21/rooms-and-mazes/
-export function generateDungeon(width, height, rooms, windiness = 0.8) {
-  const data = [];
-  for (let y = 0; y < height; y++) {
-    data.push(new Array(width).fill(1));
-  }
-
-  const regions = [];
-  let region = 0;
-
-  const incrementRegion = () => {
-    region++;
-  }
-
-  const carveRegion = (data, pos, value) => {
-    data[pos.y][pos.x] = value;
-    regions[pos.y][pos.x] = region;
-  }
-
-  const my = data.length;
-  const mx = data[0].length;
-  for (let y = 0; y < my; y++) {
-    regions.push(Array(mx).fill(0))
-  }
-
-  _addRooms(data, mx, my, incrementRegion, carveRegion, rooms, 2);
-
-  for (let y = 1; y < my; y += 2) {
-    for (let x = 1; x < mx; x += 2) {
-      if (data[y][x] !== 1) {
-        continue;
-      }
-
-      region++;
-
-      _createMaze(data, carveRegion, { x, y }, windiness);
+  while (true) {
+    const data = [];
+    for (let y = 0; y < height; y++) {
+      data.push(new Array(width).fill(0));
     }
-  }
 
-  _connectRegions(data, mx, my, region, regions);
-
-  _removeDeadEnds(data, mx, my);
-
-  return {
-    width,
-    height,
-    data
-  };
-}
-
-function _addRooms(data, mx, my, incrementRegion, carveRegion, numRoomTries) {
-  const roomSize = Math.max(Math.min(mx / 10, my / 10), 1);
-  const rooms = [];
-  for (let i = 0; i < numRoomTries; i++) {
-    const size = (_range(Math.max(1, roomSize / 2), roomSize) << 1) + 1;
-    let rectangularity = _range(0, size >> 1) << 1;
-    let width = size;
-    let height = size;
-    if (_range(0, 1) === 0) {
-      if (width + rectangularity < mx / 2) {
-        width += rectangularity;
-      }
-    } else {
-      if (height + rectangularity < my / 2) {
-        height += rectangularity;
+    const maxRoomSize = _makeOdd(Math.max(Math.floor(Math.min(width / 4, height / 4)), 3));
+    const roomSize = [];
+    let power = 0;
+    for (let s = maxRoomSize; s >= 3; s -= 2) {
+      const count = Math.pow(2, power++);
+      for (let c = 0; c < count; c++) {
+        roomSize.push(s);
       }
     }
-    let x = (_range(0, (mx - width - 1) >> 1) << 1) + 1;
-    let y = (_range(0, (my - height - 1) >> 1) << 1) + 1;
-    if (x + width > mx - 1 || y + height > my - 1) {
-      continue;
+
+    let rooms = [];
+    const areaGoal = width * height / 2;
+    let area = 0;
+    while (area < areaGoal) {
+      const size = _pickRandom(roomSize);
+      const room = { width: size, height: size };
+      if (Math.random() > 0.3) {
+        if (Math.random() < 0.5) {
+          room.width += 2;
+        } else {
+          room.height += 2;
+        }
+      }
+      rooms.push(room)
+      area += room.width * room.height;
     }
-    const room = { x, y, width, height };
-    let overlaps = false;
-    for (let j = 0; j < rooms.length; j++) {
-      const other = rooms[j];
-      if (_isOverlapped(room, other)) {
-        overlaps = true;
+
+    _sortRooms(rooms);
+
+    let roomCount = rooms.length;
+    for (let i = 0; i < roomCount; i++) {
+      const room = rooms[i];
+      let placed = false;
+      for (let t = 0; t < 1000; t++) {
+        room.x = _makeOdd(_range(1, width - room.width - 1));
+        room.y = _makeOdd(_range(1, height - room.height - 1));
+        let overlap = false;
+        for (let j = 0; j < i; j++) {
+          if (_doRoomsOverlap(room, rooms[j], room.width >= 7 ? 3 : 1, room.height >= 7 ? 3 : 1)) {
+            overlap = true;
+            break;
+          }
+        }
+        if (!overlap) {
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) {
+        delete room.x;
+        delete room.y;
+      }
+    }
+
+    rooms = rooms.filter((room) => room.x || room.y);
+    roomCount = rooms.length;
+
+    for (let i = 0; i < roomCount; i++) {
+      const room = rooms[i];
+      for (let h = 0; h < room.height; h++) {
+        for (let w = 0; w < room.width; w++) {
+          data[room.y + h][room.x + w] = i + 1;
+        }
+      }
+    }
+
+    const links = [];
+    for (let i = 0; i <= roomCount; i++) {
+      links.push(i);
+    }
+
+    const connectors = [];
+
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        if (data[y][x] === 0) {
+          if (data[y - 1][x] === 0 && data[y + 1][x] === 0 && data[y][x - 1] !== 0 && data[y][x + 1] !== 0) {
+            if (data[y][x - 1] < data[y][x + 1]) {
+              connectors.push({ x, y, r1: data[y][x - 1], r2: data[y][x + 1] });
+            } else if (data[y][x - 1] > data[y][x + 1]) {
+              connectors.push({ x, y, r1: data[y][x + 1], r2: data[y][x - 1] });
+            }
+          } else if (data[y][x - 1] === 0 && data[y][x + 1] === 0 && data[y - 1][x] !== 0 && data[y + 1][x] !== 0) {
+            if (data[y - 1][x] < data[y + 1][x]) {
+              connectors.push({ x, y, r1: data[y - 1][x], r2: data[y + 1][x] });
+            } else if (data[y - 1][x] > data[y + 1][x]) {
+              connectors.push({ x, y, r1: data[y + 1][x], r2: data[y - 1][x] });
+            }
+          }
+        }
+      }
+    }
+
+    _sortConnectors(connectors);
+
+    const conCount = connectors.length;
+    let cur;
+    let nxt;
+    for (cur = 0; cur < conCount; cur = nxt) {
+      for (nxt = cur + 1; nxt < conCount; nxt++) {
+        if (connectors[nxt].r1 !== connectors[cur].r1 || connectors[nxt].r2 !== connectors[cur].r2) {
+          break;
+        }
+      }
+      if (links[connectors[cur].r1] !== links[connectors[cur].r2]) {
+        const apl = connectors[Math.floor(cur + (nxt - cur) / 2)];
+        const min = Math.min(links[apl.r1], links[apl.r2]);
+        const max = Math.max(links[apl.r1], links[apl.r2]);
+        links[apl.r1] = min;
+        links[apl.r2] = min;
+        for (let i = 1; i <= roomCount; i++) {
+          if (links[i] === max) {
+            links[i] = min;
+          }
+        }
+        data[apl.y][apl.x] = roomCount + 1;
+      }
+    }
+
+    let multiple = false;
+
+    for (let i = 1; i <= roomCount; i++) {
+      if (links[i] !== 1) {
+        multiple = true;
         break;
       }
     }
-    if (overlaps) {
+
+    if (multiple) {
       continue;
     }
-    rooms.push(room);
-    incrementRegion();
-    for (let xOffset = 0; xOffset < width; xOffset++) {
-      for (let yOffset = 0; yOffset < height; yOffset++) {
-        carveRegion(data, { x: x + xOffset, y: y + yOffset }, 2);
-      }
-    }
+
+    return {
+      width,
+      height,
+      data,
+      rooms
+    };
   }
 }
 
-function _createMaze(data, carveRegion, start, windiness) {
-  const my = data.length;
-  const mx = data[0].length;
-  const cells = [];
-  let lastDir;
-  carveRegion(data, start, 0);
-  data[start.y][start.x] = 0;
-  cells.push(start);
-  while (cells.length > 0) {
-    const cell = cells[cells.length - 1];
-    const posCells = [];
-    for (let i = 0; i < _directions.length; i++) {
-      const dir = _directions[i];
-      if (_canCarve(data, mx, my, cell, dir)) {
-        posCells.push(dir);
+export function getPlayerStartingLocation(map) {
+  for (let y = 0; y < map.height; y++) {
+    for (let x = 0; x < map.width; x++) {
+      if (map.data[y][x] !== 0) {
+        return { x, y };
       }
     }
-    if (posCells.length > 0) {
-      let dir;
-      if (posCells.includes(lastDir) && Math.random() > windiness) {
-        dir = lastDir;
-      } else {
-        dir = posCells[Math.floor(Math.random() * posCells.length)];
-      }
-      const c1 = _addDir(cell, dir, 1);
-      const c2 = _addDir(cell, dir, 2);
-      carveRegion(data, c1, 0);
-      carveRegion(data, c2, 0);
-      cells.push(_addDir(cell, dir, 2));
-      lastDir = dir;
-    } else {
-      cells.pop();
-      lastDir = null;
-    }
-  }
-}
-
-function _connectRegions(data, mx, my, region, regions) {
-  function _carve(data, pos) {
-    data[pos.y][pos.x] = 0;
-  }
-
-  let connectors = [];
-  for (let y = 1; y < my - 1; y++) {
-    for (let x = 1; x < mx - 1; x++) {
-      if (data[y][x] !== 1) {
-        continue;
-      }
-      const connectedRegions = [];
-      for (let i = 0; i < _directions.length; i++) {
-        const dir = _directions[i];
-        const region = regions[y + dir.y][x + dir.x];
-        if (region !== 0 && !connectedRegions.includes(region)) {
-          connectedRegions.push(region);
-        }
-      }
-      if (connectedRegions.length < 2) {
-        continue;
-      }
-      connectors.push({ x, y, regions: connectedRegions })
-    }
-  }
-  const merged = [0];
-  let openRegions = [];
-  for (var i = 1; i <= region; i++) {
-    merged.push(i);
-    openRegions.push(i);
-  }
-  while (openRegions.length > 1 && connectors.length > 0) {
-    const index = _range(0, connectors.length - 1)
-    const connector = connectors[index];
-    _carve(data, { x: connector.x, y: connector.y });
-    const regions = connector.regions.map((region) => merged[region]);
-    const dest = regions[0];
-    const sources = regions.slice(1);
-    for (let i = 0; i <= region; i++) {
-      if (sources.includes(i)) {
-        merged[i] = dest;
-      }
-    }
-    openRegions = openRegions.filter((region) => {
-      return !sources.includes(region);
-    });
-    connectors = connectors.filter((con) => {
-      if (Math.abs(con.x - connector.x) <= 1 && Math.abs(con.y - connector.y) <= 1) {
-        return false;
-      }
-      con.regions = con.regions.map((region) => merged[region]);
-      for (let i = 1; i < con.regions.length; i++) {
-        if (con.regions[i] !== con.regions[0]) {
-          return true;
-        }
-      }
-      if (_range(0, 99) === 0) {
-        _carve(data, { x: con.x, y: con.y });
-      }
-      return false;
-    });
-  }
-}
-
-function _removeDeadEnds(data, mx, my) {
-  function _fill(data, pos) {
-    data[pos.y][pos.x] = 1;
-  }
-
-  let done = false;
-  while (!done) {
-    done = true;
-    for (let y = 1; y < my - 1; y++) {
-      for (let x = 1; x < mx - 1; x++) {
-        if (data[y][x] === 1) {
-          continue;
-        }
-        let exits = 0;
-        for (let i = 0; i < _directions.length; i++) {
-          const dir = _directions[i];
-          if (data[y + dir.y][x + dir.x] !== 1) {
-            exits++;
-          }
-        }
-        if (exits !== 1) {
-          continue;
-        }
-        done = false;
-        _fill(data, { x, y });
-      }
-    }
-  }
-}
-
-function _canCarve(data, mx, my, pos, dir) {
-  if (!_isInBounds(mx, my, _addDir(pos, dir, 3))) {
-    return false;
-  }
-  const nxt = _addDir(pos, dir, 2);
-  return data[nxt.y][nxt.x] === 1;
-}
-
-function _isInBounds(mx, my, pos) {
-  if (pos.x < 0 || pos.y < 0 || pos.x >= mx || pos.y >= my) {
-    return false;
-  }
-  return true;
-}
-
-function _addDir(pos, dir, len) {
-  return {
-    x: pos.x + dir.x * len,
-    y: pos.y + dir.y * len
   }
 }
 
 function _range(min, max) {
-  const value = Math.floor(Math.random() * (max - min + 1)) + min;
-  return value;
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function _isOverlapped(pri, sec) {
-  if (pri.x > sec.x + sec.width || sec.x > pri.x + pri.width) {
+function _makeOdd(value) {
+  return Math.floor(value / 2) * 2 + 1;
+}
+
+function _pickRandom(data) {
+  return data[Math.floor(Math.random() * data.length)];
+}
+
+function _sortRooms(rooms) {
+  rooms.sort((pri, sec) => {
+    const priArea = pri.width * pri.height;
+    const secArea = sec.width * sec.height;
+    if (priArea < secArea) {
+      return 1;
+    } else if (priArea > secArea) {
+      return -1;
+    }
+    return 0;
+  });
+}
+
+function _sortConnectors(connectors) {
+  connectors.sort((pri, sec) => {
+    if (pri.r1 < sec.r1) { return -1; }
+    else if (pri.r1 > sec.r1) { return 1; }
+    if (pri.r2 < sec.r2) { return -1; }
+    else if (pri.r2 > sec.r2) { return 1; }
+    if (pri.x < sec.x) { return -1; }
+    else if (pri.x > sec.x) { return 1; }
+    if (pri.y < sec.y) { return -1; }
+    else if (pri.y > sec.y) { return 1; }
+    return 0;
+  });
+}
+
+function _doRoomsOverlap(pri, sec, bx, by) {
+  if (pri.x >= sec.x + sec.width + bx || sec.x >= pri.x + pri.width + bx) {
     return false;
   }
-  if (pri.y > sec.y + sec.height || sec.y > pri.y + pri.height) {
+  if (pri.y >= sec.y + sec.height + by || sec.y >= pri.y + pri.height + by) {
     return false;
   }
   return true;
