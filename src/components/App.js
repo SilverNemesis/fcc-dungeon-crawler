@@ -23,6 +23,9 @@ class App extends React.Component {
     this.onAnimationFrame = this.onAnimationFrame.bind(this);
     this.onClick = this.onClick.bind(this);
     this.keys = {};
+    this.state = {
+      showOverlay: false
+    }
   }
 
   componentDidMount() {
@@ -66,6 +69,11 @@ class App extends React.Component {
 
   onKeyPress(key) {
     const { map, player } = this.state;
+    if (key === 'Escape') {
+      this.setState({
+        showOverlay: !this.state.showOverlay
+      });
+    }
     let dx = 0;
     let dy = 0;
     if (key === 'ArrowUp') {
@@ -106,10 +114,7 @@ class App extends React.Component {
   }
 
   _updateMap() {
-    let map = generateDungeon(53, 27);
-    while (map.rooms.length < 25) {
-      map = generateDungeon(53, 27);
-    }
+    let map = generateDungeon({ width: 107, height: 55, goal: 0.25, zones: 20, minSize: 3, maxSize: 7 });
     const player = getPlayerStartingLocation(map);
     this.setState({
       map,
@@ -161,9 +166,18 @@ class App extends React.Component {
   }
 
   render() {
+    let zones = null;
+    if (this.state && this.state.map && this.state.map.zones) {
+      zones = this.state.map.zones.map((zone, key) => (<div key={key}>{JSON.stringify(zone, null, 2)}</div>))
+    }
+    let rooms = null;
+    if (this.state && this.state.map && this.state.map.rooms) {
+      rooms = this.state.map.rooms.map((room, key) => (<div key={key}>{JSON.stringify(room, null, 2)}</div>))
+    }
     return (
       <div id="screen">
         <canvas id="canvas" ref={elem => this.canvas = elem} onClick={this.onClick}></canvas>
+        <div id="overlay" hidden={!this.state.showOverlay}>{zones}{rooms}</div>
       </div>
     );
   }

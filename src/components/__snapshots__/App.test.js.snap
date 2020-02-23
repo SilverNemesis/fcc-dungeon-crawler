@@ -8,5 +8,9 @@ exports[`renders correctly 1`] = `
     id="canvas"
     onClick={[Function]}
   />
+  <div
+    hidden={true}
+    id="overlay"
+  />
 </div>
 `;

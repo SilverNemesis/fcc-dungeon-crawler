@@ -5,7 +5,8 @@ const _directions = [
   { x: -1, y: 0 }
 ];
 
-export function generateDungeon(width, height) {
+export function generateDungeon(options) {
+  const { width, height, zones } = options;
   const data = [];
   for (let y = 0; y < height; y++) {
     data.push(new Array(width).fill(0));
@@ -17,7 +18,12 @@ export function generateDungeon(width, height) {
     data
   }
 
-  _generateRooms(map);
+  _generateRooms(map, options);
+
+  if (zones && zones > 1) {
+    _generateZones(map, zones);
+    _placeRoomsByZone(map);
+  }
 
   _placeRooms(map);
 
@@ -33,6 +39,9 @@ export function getPlayerStartingLocation(map) {
   const visited = [];
   for (let i = 0; i < height; i++) {
     visited.push(new Array(width).fill(0));
+  }
+  if (map.rooms.length === 0) {
+    return { x: 1, y: 1 };
   }
   const bossRoom = map.rooms[0];
   let x = Math.floor(bossRoom.x + bossRoom.width / 2);
@@ -65,12 +74,21 @@ export function getPlayerStartingLocation(map) {
   return { x, y };
 }
 
-function _generateRooms(map) {
+function _generateRooms(map, options) {
   const { width, height } = map;
-  const maxRoomSize = _makeOdd(Math.max(Math.floor(Math.min(width / 4, height / 4)), 3));
+  let { goal, minSize, maxSize } = options;
+  if (!goal) {
+    goal = 0.5;
+  }
+  if (!minSize) {
+    minSize = 3;
+  }
+  if (!maxSize) {
+    maxSize = _makeOdd(Math.max(Math.floor(Math.min(width / 4, height / 4)), minSize));;
+  }
   const roomSize = [];
   let power = 0;
-  for (let s = maxRoomSize; s >= 3; s -= 2) {
+  for (let s = maxSize; s >= minSize; s -= 2) {
     const count = Math.pow(2, power++);
     for (let c = 0; c < count; c++) {
       roomSize.push(s);
@@ -78,7 +96,7 @@ function _generateRooms(map) {
   }
 
   let rooms = [];
-  const areaGoal = width * height / 2;
+  const areaGoal = width * height * goal;
   let area = 0;
   while (area < areaGoal) {
     const size = _pickRandom(roomSize);
@@ -96,20 +114,92 @@ function _generateRooms(map) {
   map.rooms = rooms;
 }
 
+function _generateZones(map, count) {
+  const { width, height } = map;
+  const loc = [];
+  for (let i = 0; i < count; i++) {
+    loc[i] = i;
+  }
+
+  _shuffle(loc);
+
+  const xStep = Math.floor((width - 2) / count);
+  const yStep = Math.floor((height - 2) / count);
+
+  const zones = [];
+
+  for (let i = 0; i < count; i++) {
+    const zone = { x: i * xStep + 1, y: loc[i] * yStep + 1, width: xStep, height: yStep };
+    zones.push(zone);
+  }
+
+  map.zones = zones;
+}
+
+function _placeRoomsByZone(map) {
+  const { width, height, rooms, zones } = map;
+
+  _sortRooms_LargestToSmallest(rooms);
+
+  let zone = 0;
+  const roomCount = rooms.length;
+  for (let i = 0; i < roomCount; i++) {
+    const room = rooms[i];
+    const minX = zones[zone].x;
+    const maxX = Math.min(zones[zone].x + zones[zone].width, width - room.width - 1);
+    const minY = zones[zone].y;
+    const maxY = Math.min(zones[zone].y + zones[zone].height, height - room.height - 1);
+    if (minX + room.width > width - 1 || minY + room.height > height - 1) {
+      continue;
+    }
+    let placed = false;
+    for (let t = 0; t < 100; t++) {
+      room.x = _makeOdd(_range(minX, maxX));
+      room.y = _makeOdd(_range(minY, maxY));
+      let overlap = false;
+      for (let j = 0; j < roomCount; j++) {
+        if (j === i || !rooms[j].hasOwnProperty('x') || !rooms[j].hasOwnProperty('y')) {
+          continue;
+        }
+        if (_doRoomsOverlap(room, rooms[j], 1, 1)) {
+          overlap = true;
+          break;
+        }
+      }
+      if (!overlap) {
+        placed = true;
+        break;
+      }
+    }
+    if (placed) {
+      zone = (zone + 1) % zones.length;
+    } else {
+      delete room.x;
+      delete room.y;
+    }
+  }
+}
+
 function _placeRooms(map) {
   const { width, height, rooms } = map;
 
   _sortRooms_LargestToSmallest(rooms);
 
-  let roomCount = rooms.length;
+  const roomCount = rooms.length;
   for (let i = 0; i < roomCount; i++) {
     const room = rooms[i];
+    if (room.hasOwnProperty('x') && room.hasOwnProperty('y')) {
+      continue;
+    }
     let placed = false;
     for (let t = 0; t < 1000; t++) {
       room.x = _makeOdd(_range(1, width - room.width - 1));
       room.y = _makeOdd(_range(1, height - room.height - 1));
       let overlap = false;
-      for (let j = 0; j < i; j++) {
+      for (let j = 0; j < roomCount; j++) {
+        if (j === i || !rooms[j].hasOwnProperty('x') || !rooms[j].hasOwnProperty('y')) {
+          continue;
+        }
         if (_doRoomsOverlap(room, rooms[j], room.width >= 7 ? 3 : 1, room.height >= 7 ? 3 : 1)) {
           overlap = true;
           break;
@@ -126,7 +216,7 @@ function _placeRooms(map) {
     }
   }
 
-  map.rooms = rooms.filter((room) => room.x || room.y);
+  map.rooms = map.rooms.filter((room) => room.x || room.y);
 }
 
 function _connectNearbyRooms({ width, height, data, rooms }) {
@@ -322,6 +412,16 @@ function _makeOdd(value) {
 
 function _pickRandom(data) {
   return data[Math.floor(Math.random() * data.length)];
+}
+
+function _shuffle(data) {
+  const n = data.length;
+  for (let i = n - 1; i >= 0; i--) {
+    const j = Math.floor(Math.random() * i);
+    const t = data[i];
+    data[i] = data[j];
+    data[j] = t;
+  }
 }
 
 function _sortRooms_LargestToSmallest(rooms) {
