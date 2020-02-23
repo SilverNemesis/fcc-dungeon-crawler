@@ -120,7 +120,7 @@ class App extends React.Component {
   }
 
   _drawMap() {
-    const { width, height, data } = this.state.map;
+    const { width, height, data, rooms } = this.state.map;
     const player = this.state.player;
     const ctx = this.canvas.getContext('2d');
     ctx.fillStyle = '#FFFFFF';
@@ -129,10 +129,17 @@ class App extends React.Component {
     const cellHeight = Math.floor(this.canvas.height / height);
     const xOffset = Math.floor((this.canvas.width - width * cellWidth) / 2);
     const yOffset = Math.floor((this.canvas.height - height * cellHeight) / 2);
+    const colors = ['#7F0000', '#007F00', '#00007F', '#7F7F00', '#7F007F', '#007F7F', '#7F3F3F', '#3F7F3F', '#3F3F7F', '#7F7F3F', '#7F3F7F', '#3F7F7F'];
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         if (data[y][x] !== 0) {
-          ctx.fillStyle = '#000000';
+          if (data[y][x] <= rooms.length) {
+            const room = rooms[data[y][x] - 1];
+            ctx.fillStyle = colors[(room.group - 1) % colors.length];
+
+          } else {
+            ctx.fillStyle = '#000000';
+          }
           ctx.fillRect(xOffset + x * cellWidth + 1, yOffset + y * cellHeight + 1, cellWidth - 2, cellHeight - 2);
           ctx.fillStyle = '#FFFFFF';
           ctx.font = '8px monospace';
