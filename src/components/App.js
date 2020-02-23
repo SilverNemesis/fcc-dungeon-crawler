@@ -22,17 +22,12 @@ class App extends React.Component {
     this.onKeyUp = this.onKeyUp.bind(this);
     this.onAnimationFrame = this.onAnimationFrame.bind(this);
     this.onClick = this.onClick.bind(this);
-    const map = generateDungeon(101, 53);
-    const player = getPlayerStartingLocation(map);
-    this.state = {
-      map,
-      player
-    };
     this.keys = {};
   }
 
   componentDidMount() {
     this._resizeViewport();
+    this._updateMap();
     window.addEventListener('resize', this.onResize);
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
@@ -111,7 +106,10 @@ class App extends React.Component {
   }
 
   _updateMap() {
-    const map = generateDungeon(101, 53);
+    let map = generateDungeon(53, 27);
+    while (map.rooms.length < 25) {
+      map = generateDungeon(53, 27);
+    }
     const player = getPlayerStartingLocation(map);
     this.setState({
       map,
@@ -120,6 +118,9 @@ class App extends React.Component {
   }
 
   _drawMap() {
+    if (!this.state || !this.state.map) {
+      return;
+    }
     const { width, height, data, rooms } = this.state.map;
     const player = this.state.player;
     const ctx = this.canvas.getContext('2d');

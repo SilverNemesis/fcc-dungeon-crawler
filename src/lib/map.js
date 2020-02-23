@@ -1,3 +1,10 @@
+const _directions = [
+  { x: 0, y: -1 },
+  { x: 1, y: 0 },
+  { x: 0, y: 1 },
+  { x: -1, y: 0 }
+];
+
 export function generateDungeon(width, height) {
   width = _makeOdd(width);
   height = _makeOdd(height);
@@ -78,41 +85,41 @@ export function generateDungeon(width, height) {
     links.push(i);
   }
 
-  const connectors = [];
+  const roomConnectors = [];
 
   for (let y = 1; y < height - 1; y++) {
     for (let x = 1; x < width - 1; x++) {
       if (data[y][x] === 0) {
         if (data[y - 1][x] === 0 && data[y + 1][x] === 0 && data[y][x - 1] !== 0 && data[y][x + 1] !== 0) {
           if (data[y][x - 1] < data[y][x + 1]) {
-            connectors.push({ x, y, r1: data[y][x - 1], r2: data[y][x + 1] });
+            roomConnectors.push({ x, y, r1: data[y][x - 1], r2: data[y][x + 1] });
           } else if (data[y][x - 1] > data[y][x + 1]) {
-            connectors.push({ x, y, r1: data[y][x + 1], r2: data[y][x - 1] });
+            roomConnectors.push({ x, y, r1: data[y][x + 1], r2: data[y][x - 1] });
           }
         } else if (data[y][x - 1] === 0 && data[y][x + 1] === 0 && data[y - 1][x] !== 0 && data[y + 1][x] !== 0) {
           if (data[y - 1][x] < data[y + 1][x]) {
-            connectors.push({ x, y, r1: data[y - 1][x], r2: data[y + 1][x] });
+            roomConnectors.push({ x, y, r1: data[y - 1][x], r2: data[y + 1][x] });
           } else if (data[y - 1][x] > data[y + 1][x]) {
-            connectors.push({ x, y, r1: data[y + 1][x], r2: data[y - 1][x] });
+            roomConnectors.push({ x, y, r1: data[y + 1][x], r2: data[y - 1][x] });
           }
         }
       }
     }
   }
 
-  _sortConnectors(connectors);
+  _sortRoomConnectors(roomConnectors);
 
-  const conCount = connectors.length;
+  const conCount = roomConnectors.length;
   let cur;
   let nxt;
   for (cur = 0; cur < conCount; cur = nxt) {
     for (nxt = cur + 1; nxt < conCount; nxt++) {
-      if (connectors[nxt].r1 !== connectors[cur].r1 || connectors[nxt].r2 !== connectors[cur].r2) {
+      if (roomConnectors[nxt].r1 !== roomConnectors[cur].r1 || roomConnectors[nxt].r2 !== roomConnectors[cur].r2) {
         break;
       }
     }
-    if (links[connectors[cur].r1] !== links[connectors[cur].r2]) {
-      const apl = connectors[Math.floor(cur + (nxt - cur) / 2)];
+    if (links[roomConnectors[cur].r1] !== links[roomConnectors[cur].r2]) {
+      const apl = roomConnectors[Math.floor(cur + (nxt - cur) / 2)];
       const min = Math.min(links[apl.r1], links[apl.r2]);
       const max = Math.max(links[apl.r1], links[apl.r2]);
       links[apl.r1] = min;
@@ -148,10 +155,7 @@ export function generateDungeon(width, height) {
     }
   }
 
-  const roomInfo = [];
-  for (let i = 0; i < groups; i++) {
-    roomInfo.push(new Array(groups).fill(null));
-  }
+  const roomInfoList = {};
 
   for (let i = 0; i < roomCount; i++) {
     for (let j = i + 1; j < roomCount; j++) {
@@ -171,31 +175,48 @@ export function generateDungeon(width, height) {
         continue;
       }
 
-      const g1 = rooms[i].group - 1;
-      const g2 = rooms[j].group - 1;
+      const g1 = rooms[i].group;
+      const g2 = rooms[j].group;
+      const key = g1 + '_' + g2;
 
-      if (!roomInfo[g1][g2] || roomInfo[g1][g2].distance > distance || (roomInfo[g1][g2].distance === distance && roomInfo[g1][g2].alignment < alignment)) {
-        roomInfo[g1][g2] = { distance, room1: rooms[i].id, room2: rooms[j].id, alignment, x, y, horizontal };
-      }
-
-      if (!roomInfo[g2][g1] || roomInfo[g2][g1].distance > distance || (roomInfo[g2][g1].distance === distance && roomInfo[g2][g1].alignment < alignment)) {
-        roomInfo[g2][g1] = { distance, room1: rooms[i].id, room2: rooms[j].id, alignment, x, y, horizontal };
+      if (!roomInfoList[key]) {
+        roomInfoList[key] = { distance, g1, g2, room1: rooms[i].id, room2: rooms[j].id, alignment, x, y, horizontal };
+      } else if (roomInfoList[key].distance > distance || (roomInfoList[key].distance === distance && roomInfoList[key].alignment < alignmentAndDistance)) {
+        roomInfoList[key] = { distance, g1, g2, room1: rooms[i].id, room2: rooms[j].id, alignment, x, y, horizontal };
       }
     }
   }
 
-  for (let i = 0; i < groups; i++) {
-    let min = -1;
-    for (let j = 0; j < groups; j++) {
-      if (!roomInfo[i][j]) {
-        continue;
-      }
-      if (min === -1 || roomInfo[i][j].distance < roomInfo[i][min].distance) {
-        min = j;
-      }
+  const groupConnectors = [];
+
+  for (let prop in roomInfoList) {
+    if (roomInfoList.hasOwnProperty(prop)) {
+      groupConnectors.push(roomInfoList[prop]);
     }
-    if (min !== -1) {
-      const { x, y, distance, horizontal } = roomInfo[i][min];
+  }
+
+  _sortGroupConnectors(groupConnectors);
+
+  const groupLinks = [];
+
+  for (let i = 0; i <= groups; i++) {
+    groupLinks.push(i);
+  }
+
+  for (let i = 0; i < groupConnectors.length; i++) {
+    const groupConnector = groupConnectors[i];
+    if (groupLinks[groupConnector.g1] !== groupLinks[groupConnector.g2]) {
+      const min = Math.min(groupLinks[groupConnector.g1], groupLinks[groupConnector.g2]);
+      const max = Math.max(groupLinks[groupConnector.g1], groupLinks[groupConnector.g2]);
+      groupLinks[groupConnector.g1] = min;
+      groupLinks[groupConnector.g2] = min;
+      for (let i = 1; i <= groups; i++) {
+        if (groupLinks[i] === max) {
+          groupLinks[i] = min;
+        }
+      }
+
+      const { x, y, distance, horizontal } = groupConnector;
 
       if (horizontal) {
         for (let o = 0; o < distance; o++) {
@@ -209,24 +230,60 @@ export function generateDungeon(width, height) {
     }
   }
 
+  let connected = true;
+
+  for (let i = 1; i <= groups; i++) {
+    if (groupLinks[i] !== 1) {
+      connected = false;
+    }
+  }
+
   _sortRooms_Id(rooms);
 
   return {
     width,
     height,
     data,
-    rooms
+    rooms,
+    connected
   };
 }
 
 export function getPlayerStartingLocation(map) {
-  for (let y = 0; y < map.height; y++) {
-    for (let x = 0; x < map.width; x++) {
-      if (map.data[y][x] !== 0) {
-        return { x, y };
+  const { width, height, data } = map;
+  const visited = [];
+  for (let i = 0; i < height; i++) {
+    visited.push(new Array(width).fill(0));
+  }
+  const bossRoom = map.rooms[0];
+  let x = Math.floor(bossRoom.x + bossRoom.width / 2);
+  let y = Math.floor(bossRoom.y + bossRoom.height / 2);
+  let room = 1;
+  const q = [];
+  q.push({ x, y });
+  while (q.length > 0) {
+    const size = q.length;
+    for (let i = 0; i < size; i++) {
+      const top = q.shift();
+      room = data[top.y][top.x];
+      for (let j = 0; j < 4; j++) {
+        const dir = _directions[j];
+        if (top.x + dir.x < 0 || top.x + dir.x > width - 1 || top.y + dir.y < 0 || top.y + dir.y > height - 1) {
+          continue;
+        }
+        if (data[top.y + dir.y][top.x + dir.x] !== 0) {
+          if (visited[top.y + dir.y][top.x + dir.x] === 0) {
+            visited[top.y + dir.y][top.x + dir.x] = 1;
+            q.push({ x: top.x + dir.x, y: top.y + dir.y });
+          }
+        }
       }
     }
   }
+  const playerRoom = map.rooms[room - 1];
+  x = Math.floor(playerRoom.x + playerRoom.width / 2);
+  y = Math.floor(playerRoom.y + playerRoom.height / 2);
+  return { x, y };
 }
 
 function _range(min, max) {
@@ -281,7 +338,7 @@ function _sortRooms_Id(rooms) {
   });
 }
 
-function _sortConnectors(connectors) {
+function _sortRoomConnectors(connectors) {
   connectors.sort((pri, sec) => {
     if (pri.r1 < sec.r1) { return -1; }
     else if (pri.r1 > sec.r1) { return 1; }
@@ -291,6 +348,16 @@ function _sortConnectors(connectors) {
     else if (pri.x > sec.x) { return 1; }
     if (pri.y < sec.y) { return -1; }
     else if (pri.y > sec.y) { return 1; }
+    return 0;
+  });
+}
+
+function _sortGroupConnectors(connectors) {
+  connectors.sort((pri, sec) => {
+    if (pri.distance < sec.distance) { return -1; }
+    else if (pri.distance > sec.distance) { return 1; }
+    if (pri.alignment < sec.alignment) { return -1; }
+    else if (pri.alignment > sec.alignment) { return 1; }
     return 0;
   });
 }
