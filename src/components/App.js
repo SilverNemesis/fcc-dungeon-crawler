@@ -124,7 +124,7 @@ class App extends React.Component {
     const { width, height, data, rooms } = this.state.map;
     const player = this.state.player;
     const ctx = this.canvas.getContext('2d');
-    ctx.fillStyle = '#FFFFFF';
+    ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     const cellWidth = Math.floor(this.canvas.width / width);
     const cellHeight = Math.floor(this.canvas.height / height);
@@ -136,10 +136,13 @@ class App extends React.Component {
         if (data[y][x] !== 0) {
           if (data[y][x] <= rooms.length) {
             const room = rooms[data[y][x] - 1];
-            ctx.fillStyle = colors[(room.group - 1) % colors.length];
-
+            if (room.group) {
+              ctx.fillStyle = colors[(room.group - 1) % colors.length];
+            } else {
+              ctx.fillStyle = '#3F3F3F';
+            }
           } else {
-            ctx.fillStyle = '#000000';
+            ctx.fillStyle = '#3F3F3F';
           }
           ctx.fillRect(xOffset + x * cellWidth + 1, yOffset + y * cellHeight + 1, cellWidth - 2, cellHeight - 2);
           ctx.fillStyle = '#FFFFFF';
