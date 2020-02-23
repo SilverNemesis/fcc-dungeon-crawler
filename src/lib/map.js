@@ -6,14 +6,67 @@ const _directions = [
 ];
 
 export function generateDungeon(width, height) {
-  width = _makeOdd(width);
-  height = _makeOdd(height);
-
   const data = [];
   for (let y = 0; y < height; y++) {
     data.push(new Array(width).fill(0));
   }
 
+  const map = {
+    width,
+    height,
+    data
+  }
+
+  _generateRooms(map);
+
+  _placeRooms(map);
+
+  _connectNearbyRooms(map);
+
+  _connectDistantRooms(map);
+
+  return map;
+}
+
+export function getPlayerStartingLocation(map) {
+  const { width, height, data } = map;
+  const visited = [];
+  for (let i = 0; i < height; i++) {
+    visited.push(new Array(width).fill(0));
+  }
+  const bossRoom = map.rooms[0];
+  let x = Math.floor(bossRoom.x + bossRoom.width / 2);
+  let y = Math.floor(bossRoom.y + bossRoom.height / 2);
+  let room = 1;
+  const q = [];
+  q.push({ x, y });
+  while (q.length > 0) {
+    const size = q.length;
+    for (let i = 0; i < size; i++) {
+      const top = q.shift();
+      room = data[top.y][top.x];
+      for (let j = 0; j < 4; j++) {
+        const dir = _directions[j];
+        if (top.x + dir.x < 0 || top.x + dir.x > width - 1 || top.y + dir.y < 0 || top.y + dir.y > height - 1) {
+          continue;
+        }
+        if (data[top.y + dir.y][top.x + dir.x] !== 0) {
+          if (visited[top.y + dir.y][top.x + dir.x] === 0) {
+            visited[top.y + dir.y][top.x + dir.x] = 1;
+            q.push({ x: top.x + dir.x, y: top.y + dir.y });
+          }
+        }
+      }
+    }
+  }
+  const playerRoom = map.rooms[room - 1];
+  x = Math.floor(playerRoom.x + playerRoom.width / 2);
+  y = Math.floor(playerRoom.y + playerRoom.height / 2);
+  return { x, y };
+}
+
+function _generateRooms(map) {
+  const { width, height } = map;
   const maxRoomSize = _makeOdd(Math.max(Math.floor(Math.min(width / 4, height / 4)), 3));
   const roomSize = [];
   let power = 0;
@@ -40,6 +93,11 @@ export function generateDungeon(width, height) {
     rooms.push(room)
     area += room.width * room.height;
   }
+  map.rooms = rooms;
+}
+
+function _placeRooms(map) {
+  const { width, height, rooms } = map;
 
   _sortRooms_LargestToSmallest(rooms);
 
@@ -68,8 +126,11 @@ export function generateDungeon(width, height) {
     }
   }
 
-  rooms = rooms.filter((room) => room.x || room.y);
-  roomCount = rooms.length;
+  map.rooms = rooms.filter((room) => room.x || room.y);
+}
+
+function _connectNearbyRooms({ width, height, data, rooms }) {
+  const roomCount = rooms.length;
 
   for (let i = 0; i < roomCount; i++) {
     const room = rooms[i];
@@ -138,10 +199,19 @@ export function generateDungeon(width, height) {
     room.id = i + 1;
     room.group = links[room.id];
   }
+}
+
+function _connectDistantRooms(map) {
+  const { data, rooms } = map;
+
+  const roomCount = rooms.length;
 
   _sortRooms_GroupAndId(rooms);
 
   let groups = 0;
+
+  let cur;
+  let nxt;
 
   for (cur = 0; cur < roomCount; cur = nxt) {
     for (nxt = cur + 1; nxt < roomCount; nxt++) {
@@ -230,60 +300,16 @@ export function generateDungeon(width, height) {
     }
   }
 
-  let connected = true;
+  _sortRooms_Id(rooms);
+
+  map.connected = true;
 
   for (let i = 1; i <= groups; i++) {
     if (groupLinks[i] !== 1) {
-      connected = false;
+      map.connected = false;
+      break;
     }
   }
-
-  _sortRooms_Id(rooms);
-
-  return {
-    width,
-    height,
-    data,
-    rooms,
-    connected
-  };
-}
-
-export function getPlayerStartingLocation(map) {
-  const { width, height, data } = map;
-  const visited = [];
-  for (let i = 0; i < height; i++) {
-    visited.push(new Array(width).fill(0));
-  }
-  const bossRoom = map.rooms[0];
-  let x = Math.floor(bossRoom.x + bossRoom.width / 2);
-  let y = Math.floor(bossRoom.y + bossRoom.height / 2);
-  let room = 1;
-  const q = [];
-  q.push({ x, y });
-  while (q.length > 0) {
-    const size = q.length;
-    for (let i = 0; i < size; i++) {
-      const top = q.shift();
-      room = data[top.y][top.x];
-      for (let j = 0; j < 4; j++) {
-        const dir = _directions[j];
-        if (top.x + dir.x < 0 || top.x + dir.x > width - 1 || top.y + dir.y < 0 || top.y + dir.y > height - 1) {
-          continue;
-        }
-        if (data[top.y + dir.y][top.x + dir.x] !== 0) {
-          if (visited[top.y + dir.y][top.x + dir.x] === 0) {
-            visited[top.y + dir.y][top.x + dir.x] = 1;
-            q.push({ x: top.x + dir.x, y: top.y + dir.y });
-          }
-        }
-      }
-    }
-  }
-  const playerRoom = map.rooms[room - 1];
-  x = Math.floor(playerRoom.x + playerRoom.width / 2);
-  y = Math.floor(playerRoom.y + playerRoom.height / 2);
-  return { x, y };
 }
 
 function _range(min, max) {
