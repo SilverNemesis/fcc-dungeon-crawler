@@ -1,10 +1,10 @@
 self.__precacheManifest = (self.__precacheManifest || []).concat([
   {
-    "revision": "edcc450cbf2b6c990dfb202a22afb2ab",
+    "revision": "6fcc64d095ae006d0890560ab12bd767",
     "url": "/fcc-dungeon-crawler/index.html"
   },
   {
-    "revision": "8e0043a1c3a01713fee2",
+    "revision": "76d67e8ee4e029c3c0f0",
     "url": "/fcc-dungeon-crawler/static/css/main.4981d9b4.chunk.css"
   },
   {
@@ -16,8 +16,8 @@ self.__precacheManifest = (self.__precacheManifest || []).concat([
     "url": "/fcc-dungeon-crawler/static/js/2.c9d75087.chunk.js.LICENSE.txt"
   },
   {
-    "revision": "8e0043a1c3a01713fee2",
-    "url": "/fcc-dungeon-crawler/static/js/main.17c60424.chunk.js"
+    "revision": "76d67e8ee4e029c3c0f0",
+    "url": "/fcc-dungeon-crawler/static/js/main.914c52f2.chunk.js"
   },
   {
     "revision": "a9cfdb172f91f061ff09",
