@@ -20,12 +20,19 @@ export function generateDungeon(options) {
 
   _generateRooms(map, options);
 
+  _sortRooms_LargestToSmallest(map.rooms);
+
+  let { maxRooms } = options;
+
   if (zones && zones > 1) {
     _generateZones(map, zones);
-    _placeRoomsByZone(map);
+    const placedRooms = _placeRoomsByZone(map, maxRooms);
+    if (maxRooms !== undefined) {
+      maxRooms -= placedRooms;
+    }
   }
 
-  _placeRooms(map);
+  _placeRooms(map, maxRooms);
 
   _connectNearbyRooms(map);
 
@@ -136,14 +143,16 @@ function _generateZones(map, count) {
   map.zones = zones;
 }
 
-function _placeRoomsByZone(map) {
+function _placeRoomsByZone(map, maxRooms) {
   const { width, height, rooms, zones } = map;
 
-  _sortRooms_LargestToSmallest(rooms);
-
+  let placedRooms = 0;
   let zone = 0;
   const roomCount = rooms.length;
   for (let i = 0; i < roomCount; i++) {
+    if (maxRooms && placedRooms === maxRooms) {
+      break;
+    }
     const room = rooms[i];
     const minX = zones[zone].x;
     const maxX = Math.min(zones[zone].x + zones[zone].width, width - room.width - 1);
@@ -152,7 +161,7 @@ function _placeRoomsByZone(map) {
     if (minX + room.width > width - 1 || minY + room.height > height - 1) {
       continue;
     }
-    let placed = false;
+    let isPlaced = false;
     for (let t = 0; t < 100; t++) {
       room.x = _makeOdd(_range(minX, maxX));
       room.y = _makeOdd(_range(minY, maxY));
@@ -167,26 +176,31 @@ function _placeRoomsByZone(map) {
         }
       }
       if (!overlap) {
-        placed = true;
+        isPlaced = true;
         break;
       }
     }
-    if (placed) {
+    if (isPlaced) {
+      placedRooms++;
       zone = (zone + 1) % zones.length;
     } else {
       delete room.x;
       delete room.y;
     }
   }
+
+  return placedRooms;
 }
 
-function _placeRooms(map) {
+function _placeRooms(map, maxRooms) {
   const { width, height, rooms } = map;
 
-  _sortRooms_LargestToSmallest(rooms);
-
+  let placedRooms = 0;
   const roomCount = rooms.length;
   for (let i = 0; i < roomCount; i++) {
+    if (maxRooms !== undefined && placedRooms === maxRooms) {
+      break;
+    }
     const room = rooms[i];
     if (room.hasOwnProperty('x') && room.hasOwnProperty('y')) {
       continue;
@@ -210,13 +224,17 @@ function _placeRooms(map) {
         break;
       }
     }
-    if (!placed) {
+    if (placed) {
+      placedRooms++;
+    } else {
       delete room.x;
       delete room.y;
     }
   }
 
   map.rooms = map.rooms.filter((room) => room.x || room.y);
+
+  return map.rooms.length;
 }
 
 function _connectNearbyRooms({ width, height, data, rooms }) {
@@ -416,8 +434,8 @@ function _pickRandom(data) {
 
 function _shuffle(data) {
   const n = data.length;
-  for (let i = n - 1; i >= 0; i--) {
-    const j = Math.floor(Math.random() * i);
+  for (let i = n - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
     const t = data[i];
     data[i] = data[j];
     data[j] = t;
