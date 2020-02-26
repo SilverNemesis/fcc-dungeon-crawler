@@ -159,10 +159,22 @@ class App extends React.Component {
       }
     }
 
-    ctx.fillStyle = '#7F7FFF';
-    ctx.beginPath();
-    ctx.arc(xOffset + player.x * cellWidth + cellWidth / 2, yOffset + player.y * cellHeight + cellHeight / 2, Math.min(cellWidth / 4, cellHeight / 4) - 1, 0, Math.PI * 2);
-    ctx.fill();
+    const boss = {
+      x: Math.floor(rooms[0].x + rooms[0].width / 2),
+      y: Math.floor(rooms[0].y + rooms[0].height / 2)
+    };
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '50px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('O', xOffset + boss.x * cellWidth + cellWidth / 2, yOffset + boss.y * cellHeight + cellHeight / 2);
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '50px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('X', xOffset + player.x * cellWidth + cellWidth / 2, yOffset + player.y * cellHeight + cellHeight / 2);
   }
 
   render() {
