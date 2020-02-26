@@ -6,7 +6,7 @@ const _directions = [
 ];
 
 export function generateDungeon(options) {
-  const { width, height, zones } = options;
+  const { width, height, zones, bossRoom } = options;
   const data = [];
   for (let y = 0; y < height; y++) {
     data.push(new Array(width).fill(0));
@@ -26,9 +26,25 @@ export function generateDungeon(options) {
 
   if (zones && zones > 1) {
     _generateZones(map, zones);
+    if (bossRoom) {
+      const room = map.rooms[0];
+      const zone = map.zones[0];
+      if (room.width <= zone.width && room.height <= zone.height) {
+        room.x = Math.floor(zone.x);
+        room.y = Math.floor(zone.y + (zone.height - room.height) / 2);
+      }
+    }
     const placedRooms = _placeRoomsByZone(map, maxRooms);
     if (maxRooms !== undefined) {
       maxRooms -= placedRooms;
+    }
+  } else {
+    if (bossRoom) {
+      const room = map.rooms[0];
+      if (room.width <= width - 2 && room.height <= height - 2) {
+        room.x = Math.floor((width - room.width) / 2);
+        room.y = Math.floor((height - room.height) / 2);
+      }
     }
   }
 
@@ -37,6 +53,8 @@ export function generateDungeon(options) {
   _connectNearbyRooms(map);
 
   _connectDistantRooms(map);
+
+  _sortRooms_Id(map.rooms);
 
   return map;
 }
@@ -154,6 +172,9 @@ function _placeRoomsByZone(map, maxRooms) {
       break;
     }
     const room = rooms[i];
+    if (room.hasOwnProperty('x') && room.hasOwnProperty('y')) {
+      continue;
+    }
     const minX = zones[zone].x;
     const maxX = Math.min(zones[zone].x + zones[zone].width, width - room.width - 1);
     const minY = zones[zone].y;
@@ -242,9 +263,10 @@ function _connectNearbyRooms({ width, height, data, rooms }) {
 
   for (let i = 0; i < roomCount; i++) {
     const room = rooms[i];
+    room.id = i + 1;
     for (let h = 0; h < room.height; h++) {
       for (let w = 0; w < room.width; w++) {
-        data[room.y + h][room.x + w] = i + 1;
+        data[room.y + h][room.x + w] = room.id;
       }
     }
   }
@@ -304,7 +326,6 @@ function _connectNearbyRooms({ width, height, data, rooms }) {
 
   for (let i = 0; i < roomCount; i++) {
     const room = rooms[i];
-    room.id = i + 1;
     room.group = links[room.id];
   }
 }
@@ -407,8 +428,6 @@ function _connectDistantRooms(map) {
       }
     }
   }
-
-  _sortRooms_Id(rooms);
 
   map.connected = true;
 
