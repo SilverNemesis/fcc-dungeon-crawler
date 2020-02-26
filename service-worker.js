@@ -14,7 +14,7 @@
 importScripts("https://storage.googleapis.com/workbox-cdn/releases/4.3.1/workbox-sw.js");
 
 importScripts(
-  "/fcc-dungeon-crawler/precache-manifest.4bb35faad883661aa3ad662dd3ce3dbb.js"
+  "/fcc-dungeon-crawler/precache-manifest.a080da2c125ccc26899b1cb3899915d1.js"
 );
 
 self.addEventListener('message', (event) => {
