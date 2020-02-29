@@ -104,6 +104,8 @@ export function generateDungeon(options) {
 
   _placeRooms(map, maxRooms);
 
+  _addRoomsToMap(map);
+
   _connectNearbyRooms(map);
 
   _connectDistantRooms(map);
@@ -337,11 +339,12 @@ function _placeRooms(map, maxRooms) {
 }
 
 /**
- * Connects nearby rooms together
+ * Adds rooms to the map
  * @param {Map} map
  */
-function _connectNearbyRooms(map) {
-  const { width, height, data, rooms } = map;
+function _addRoomsToMap(map) {
+  const { data, rooms } = map;
+
   const roomCount = rooms.length;
 
   for (let i = 0; i < roomCount; i++) {
@@ -353,11 +356,62 @@ function _connectNearbyRooms(map) {
       }
     }
   }
+}
 
-  const links = [];
-  for (let i = 0; i <= roomCount; i++) {
-    links.push(i);
+/**
+ * Connects nearby rooms together
+ * @param {Map} map
+ */
+function _connectNearbyRooms(map) {
+  const { data, rooms } = map;
+
+  const links = _generateLinks(rooms.length);
+
+  const roomConnectors = _generateRoomConnectors(map);
+
+  _sortRoomConnectors(roomConnectors);
+
+  const roomCount = rooms.length;
+  const connectorId = roomCount + 1;
+  const conCount = roomConnectors.length;
+  let cur;
+  let nxt;
+  for (cur = 0; cur < conCount; cur = nxt) {
+    for (nxt = cur + 1; nxt < conCount; nxt++) {
+      if (roomConnectors[nxt].r1 !== roomConnectors[cur].r1 || roomConnectors[nxt].r2 !== roomConnectors[cur].r2) {
+        break;
+      }
+    }
+    if (links[roomConnectors[cur].r1] !== links[roomConnectors[cur].r2]) {
+      const apl = roomConnectors[Math.floor(cur + (nxt - cur) / 2)];
+      const min = Math.min(links[apl.r1], links[apl.r2]);
+      const max = Math.max(links[apl.r1], links[apl.r2]);
+      links[apl.r1] = min;
+      links[apl.r2] = min;
+      for (let i = 1; i <= roomCount; i++) {
+        if (links[i] === max) {
+          links[i] = min;
+        }
+      }
+      data[apl.y][apl.x] = connectorId;
+    }
   }
+
+  for (let i = 0; i < roomCount; i++) {
+    const room = rooms[i];
+    room.group = links[room.id];
+  }
+
+  map.connected = _isMapConnected(links);
+}
+
+/**
+ * Generates a list of connectors for nearby rooms
+ * @param {Map} map
+ * @returns {RoomConnector[]} room connectors
+ */
+function _generateRoomConnectors(map) {
+  const { width, height, data } = map;
 
   const roomConnectors = [];
 
@@ -381,36 +435,7 @@ function _connectNearbyRooms(map) {
     }
   }
 
-  _sortRoomConnectors(roomConnectors);
-
-  const conCount = roomConnectors.length;
-  let cur;
-  let nxt;
-  for (cur = 0; cur < conCount; cur = nxt) {
-    for (nxt = cur + 1; nxt < conCount; nxt++) {
-      if (roomConnectors[nxt].r1 !== roomConnectors[cur].r1 || roomConnectors[nxt].r2 !== roomConnectors[cur].r2) {
-        break;
-      }
-    }
-    if (links[roomConnectors[cur].r1] !== links[roomConnectors[cur].r2]) {
-      const apl = roomConnectors[Math.floor(cur + (nxt - cur) / 2)];
-      const min = Math.min(links[apl.r1], links[apl.r2]);
-      const max = Math.max(links[apl.r1], links[apl.r2]);
-      links[apl.r1] = min;
-      links[apl.r2] = min;
-      for (let i = 1; i <= roomCount; i++) {
-        if (links[i] === max) {
-          links[i] = min;
-        }
-      }
-      data[apl.y][apl.x] = roomCount + 1;
-    }
-  }
-
-  for (let i = 0; i < roomCount; i++) {
-    const room = rooms[i];
-    room.group = links[room.id];
-  }
+  return roomConnectors;
 }
 
 /**
@@ -420,26 +445,108 @@ function _connectNearbyRooms(map) {
 function _connectDistantRooms(map) {
   const { data, rooms } = map;
 
-  const roomCount = rooms.length;
-
   _sortRooms_GroupAndId(rooms);
 
-  let groups = 0;
+  const groupCount = _renumberGroups(rooms);
+
+  if (groupCount === 1) {
+    return;
+  }
+
+  const groupConnectors = _generateGroupConnectors(rooms);
+
+  _sortGroupConnectors(groupConnectors);
+
+  const groupLinks = _generateLinks(groupCount);
+
+  const connectorId = rooms.length + 1;
+
+  for (let i = 0; i < groupConnectors.length; i++) {
+    const groupConnector = groupConnectors[i];
+    if (groupLinks[groupConnector.g1] !== groupLinks[groupConnector.g2]) {
+      const min = Math.min(groupLinks[groupConnector.g1], groupLinks[groupConnector.g2]);
+      const max = Math.max(groupLinks[groupConnector.g1], groupLinks[groupConnector.g2]);
+      groupLinks[groupConnector.g1] = min;
+      groupLinks[groupConnector.g2] = min;
+      for (let i = 1; i <= groupCount; i++) {
+        if (groupLinks[i] === max) {
+          groupLinks[i] = min;
+        }
+      }
+
+      const { x, y, distance, horizontal } = groupConnector;
+
+      if (horizontal) {
+        for (let o = 0; o < distance; o++) {
+          data[y][x + o] = connectorId;
+        }
+      } else {
+        for (let o = 0; o < distance; o++) {
+          data[y + o][x] = connectorId;
+        }
+      }
+    }
+  }
+
+  map.connected = _isMapConnected(groupLinks);
+}
+
+/**
+ * Generates a list of links that link to themselves
+ * @param {number} count
+ * @returns {number[]} links
+ */
+function _generateLinks(count) {
+  const links = [];
+  for (let i = 0; i <= count; i++) {
+    links.push(i);
+  }
+  return links;
+}
+
+function _isMapConnected(links) {
+  for (let i = 1; i < links.length; i++) {
+    if (links[i] !== 1) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Renumbers the groups contiguously statrting at 1
+ * @param {Room[]} rooms
+ * @returns {number} number of groups
+ */
+function _renumberGroups(rooms) {
+  const roomCount = rooms.length;
+
+  let groupCount = 0;
 
   let cur;
   let nxt;
-
   for (cur = 0; cur < roomCount; cur = nxt) {
     for (nxt = cur + 1; nxt < roomCount; nxt++) {
       if (rooms[nxt].group !== rooms[cur].group) {
         break;
       }
     }
-    groups++;
+    groupCount++;
     for (let apl = cur; apl < nxt; apl++) {
-      rooms[apl].group = groups;
+      rooms[apl].group = groupCount;
     }
   }
+
+  return groupCount;
+}
+
+/**
+ * Generates a list of connectors across different groups
+ * @param {Room[]} rooms
+ * @returns {GrouConnector[]} group connectors
+ */
+function _generateGroupConnectors(rooms) {
+  const roomCount = rooms.length;
 
   const roomInfoList = {};
 
@@ -481,49 +588,7 @@ function _connectDistantRooms(map) {
     }
   }
 
-  _sortGroupConnectors(groupConnectors);
-
-  const groupLinks = [];
-
-  for (let i = 0; i <= groups; i++) {
-    groupLinks.push(i);
-  }
-
-  for (let i = 0; i < groupConnectors.length; i++) {
-    const groupConnector = groupConnectors[i];
-    if (groupLinks[groupConnector.g1] !== groupLinks[groupConnector.g2]) {
-      const min = Math.min(groupLinks[groupConnector.g1], groupLinks[groupConnector.g2]);
-      const max = Math.max(groupLinks[groupConnector.g1], groupLinks[groupConnector.g2]);
-      groupLinks[groupConnector.g1] = min;
-      groupLinks[groupConnector.g2] = min;
-      for (let i = 1; i <= groups; i++) {
-        if (groupLinks[i] === max) {
-          groupLinks[i] = min;
-        }
-      }
-
-      const { x, y, distance, horizontal } = groupConnector;
-
-      if (horizontal) {
-        for (let o = 0; o < distance; o++) {
-          data[y][x + o] = roomCount + 1;
-        }
-      } else {
-        for (let o = 0; o < distance; o++) {
-          data[y + o][x] = roomCount + 1;
-        }
-      }
-    }
-  }
-
-  map.connected = true;
-
-  for (let i = 1; i <= groups; i++) {
-    if (groupLinks[i] !== 1) {
-      map.connected = false;
-      break;
-    }
-  }
+  return groupConnectors;
 }
 
 /**
