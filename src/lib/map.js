@@ -1,3 +1,4 @@
+// A list of the cardinal directions
 const _directions = [
   { x: 0, y: -1 },
   { x: 1, y: 0 },
@@ -5,6 +6,55 @@ const _directions = [
   { x: -1, y: 0 }
 ];
 
+/**
+ * Options type definition
+ * @typedef {Object} Options
+ * @property {number} width - width of the dungeon
+ * @property {number} height - height of the dungeon
+ * @property {number} zones - number of zones in the dungeon
+ * @property {boolean} bossRoom - whether ot not to use "boss room" logic
+ * @property {number} goal - the fraction of the map to contain rooms
+ * @property {number} maxRooms - the maximum number of rooms in the dungeon
+ * @property {number} minSize - minimum room width and height
+ * @property {number} maxSize - maximum base room width and height (excluding rectangle add on)
+ */
+
+/**
+ * Map type definition
+ * @typedef {Object} Map
+ * @property {number} width - width of the dungeon
+ * @property {number} height - height of the dungeon
+ * @property {number[][]} data - the map of the dungeon
+ * @property {Room[]} rooms - the rooms in the dungeon
+ * @property {Zone[]} zones - the zones in the dungeon
+ * @property {boolean} connected - whether or not all the rooms are connected
+ */
+
+/**
+ * Room type definition
+ * @typedef {Object} Room
+ * @property {number} width - width of the room
+ * @property {number} height - height of the room
+ * @property {number} x - x coordinate of upper corner of room
+ * @property {number} y - y coordinate of upper corner of room
+ * @property {number} id - the room id
+ * @property {number} group - the group that contains the room
+ */
+
+/**
+ * Map type definition
+ * @typedef {Object} Zone
+ * @property {number} width - width of the zone
+ * @property {number} height - height of the zone
+ * @property {number} x - x coordinate of upper corner of zone
+ * @property {number} y - y coordinate of upper corner of zone
+ */
+
+/**
+ * Generates a dungeon
+ * @param {Options} options
+ * @returns {Map}
+ */
 export function generateDungeon(options) {
   const { width, height, zones, bossRoom } = options;
   const data = [];
@@ -59,6 +109,10 @@ export function generateDungeon(options) {
   return map;
 }
 
+/**
+ * Gets a starting location for the player as far from the first room as possible
+ * @param {Map} map
+ */
 export function getPlayerStartingLocation(map) {
   const { width, height, data } = map;
   const visited = [];
@@ -99,6 +153,11 @@ export function getPlayerStartingLocation(map) {
   return { x, y };
 }
 
+/**
+ * Generates rooms that may go into the dungeon
+ * @param {Map} map
+ * @param {Options} options
+ */
 function _generateRooms(map, options) {
   const { width, height } = map;
   let { goal, minSize, maxSize } = options;
@@ -139,6 +198,11 @@ function _generateRooms(map, options) {
   map.rooms = rooms;
 }
 
+/**
+ * Generates the zones within the dungeon
+ * @param {Map} map
+ * @param {number} count - the number of zones to generate
+ */
 function _generateZones(map, count) {
   const { width, height } = map;
   const loc = [];
@@ -161,6 +225,11 @@ function _generateZones(map, count) {
   map.zones = zones;
 }
 
+/**
+ * Places rooms across the zones of a dungeon
+ * @param {Map} map
+ * @param {number} maxRooms - the maximum number of rooms to place
+ */
 function _placeRoomsByZone(map, maxRooms) {
   const { width, height, rooms, zones } = map;
 
@@ -213,6 +282,11 @@ function _placeRoomsByZone(map, maxRooms) {
   return placedRooms;
 }
 
+/**
+ * Places rooms anywhere in a dungeon
+ * @param {Map} map
+ * @param {number} maxRooms - the maximum number of rooms to place
+ */
 function _placeRooms(map, maxRooms) {
   const { width, height, rooms } = map;
 
@@ -258,7 +332,12 @@ function _placeRooms(map, maxRooms) {
   return map.rooms.length;
 }
 
-function _connectNearbyRooms({ width, height, data, rooms }) {
+/**
+ * Connects nearby rooms together
+ * @param {Map} map
+ */
+function _connectNearbyRooms(map) {
+  const { width, height, data, rooms } = map;
   const roomCount = rooms.length;
 
   for (let i = 0; i < roomCount; i++) {
@@ -330,6 +409,10 @@ function _connectNearbyRooms({ width, height, data, rooms }) {
   }
 }
 
+/**
+ * Connects distant rooms together
+ * @param {Map} map
+ */
 function _connectDistantRooms(map) {
   const { data, rooms } = map;
 
@@ -439,14 +522,27 @@ function _connectDistantRooms(map) {
   }
 }
 
+/**
+ * Returns a random number within a range
+ * @param {number} min
+ * @param {number} max
+ */
 function _range(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+/**
+ * Picks a random element from an array
+ * @param {*[]} data
+ */
 function _pickRandom(data) {
   return data[Math.floor(Math.random() * data.length)];
 }
 
+/**
+ * Shuffles the elements in an array
+ * @param {*[]} data
+ */
 function _shuffle(data) {
   const n = data.length;
   for (let i = n - 1; i > 0; i--) {
@@ -457,6 +553,10 @@ function _shuffle(data) {
   }
 }
 
+/**
+ * Shuffles the elements in an array
+ * @param {*[]} data
+ */
 function _sortRooms_LargestToSmallest(rooms) {
   rooms.sort((pri, sec) => {
     const priArea = pri.width * pri.height;
@@ -470,6 +570,10 @@ function _sortRooms_LargestToSmallest(rooms) {
   });
 }
 
+/**
+ * Sorts rooms by group and id
+ * @param {Room[]} rooms
+ */
 function _sortRooms_GroupAndId(rooms) {
   rooms.sort((pri, sec) => {
     if (pri.group < sec.group) {
@@ -486,6 +590,10 @@ function _sortRooms_GroupAndId(rooms) {
   });
 }
 
+/**
+ * Sorts rooms by id
+ * @param {Room[]} rooms
+ */
 function _sortRooms_Id(rooms) {
   rooms.sort((pri, sec) => {
     if (pri.id < sec.id) {
@@ -497,6 +605,10 @@ function _sortRooms_Id(rooms) {
   });
 }
 
+/**
+ * Sorts room connectors by regions and location
+ * @param {RoomConnector[]} connectors
+ */
 function _sortRoomConnectors(connectors) {
   connectors.sort((pri, sec) => {
     if (pri.r1 < sec.r1) { return -1; }
@@ -511,6 +623,10 @@ function _sortRoomConnectors(connectors) {
   });
 }
 
+/**
+ * Sorts group connectors by distance and alignment
+ * @param {GroupConnector[]} connectors
+ */
 function _sortGroupConnectors(connectors) {
   connectors.sort((pri, sec) => {
     if (pri.distance < sec.distance) { return -1; }
@@ -521,16 +637,30 @@ function _sortGroupConnectors(connectors) {
   });
 }
 
-function _doRoomsOverlap(pri, sec, bx, by) {
-  if (pri.x >= sec.x + sec.width + bx || sec.x >= pri.x + pri.width + bx) {
+/**
+ * Checks if rooms overlap (including a border)
+ * @param {Room} room1
+ * @param {Room} room2
+ * @param {number} borderX - x border width
+ * @param {number} borderY - y border width
+ * @returns {boolean} whether or not the rooms overlap
+ */
+function _doRoomsOverlap(room1, room2, borderX, borderY) {
+  if (room1.x >= room2.x + room2.width + borderX || room2.x >= room1.x + room1.width + borderX) {
     return false;
   }
-  if (pri.y >= sec.y + sec.height + by || sec.y >= pri.y + pri.height + by) {
+  if (room1.y >= room2.y + room2.height + borderY || room2.y >= room1.y + room1.height + borderY) {
     return false;
   }
   return true;
 }
 
+/**
+ * Gets the alignment and distance between rooms
+ * @param {Room} room1
+ * @param {Room} room2
+ * @returns {AlignmentDistance} the alignment, distance, and whether or not the alignment is horizontal
+ */
 function _getAlignmentAndDistance(room1, room2) {
   if (room1.y > room2.y + room2.height || room2.y > room1.y + room1.height) {
     if (room1.x > room2.x + room2.width || room2.x > room1.x + room1.width) {
