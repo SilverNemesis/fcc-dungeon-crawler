@@ -28,16 +28,89 @@ class App extends React.Component {
     this.onChange = this.onChange.bind(this);
     this.updateMap = this.updateMap.bind(this);
     this.keys = {};
+    const mapOptions = {
+      width: 112,
+      height: 63,
+      goal: 0.25,
+      zones: 20,
+      minSize: 4,
+      maxSize: 10,
+      maxRooms: 0,
+      bossRoom: false
+    };
     this.state = {
       showControls: false,
       mode: 0,
       modes: ['Map Mode', 'Explore Mode'],
+      mapOptions,
       options: [
         [
           {
             name: 'Update Map',
             type: 'function',
             function: this.updateMap
+          },
+          {
+            name: 'Map Width',
+            type: 'int',
+            id: 'width',
+            min: 10,
+            max: 200,
+            value: mapOptions.width
+          },
+          {
+            name: 'Map Height',
+            type: 'int',
+            id: 'height',
+            min: 10,
+            max: 100,
+            value: mapOptions.height
+          },
+          {
+            name: 'Room Fraction',
+            type: 'float',
+            id: 'goal',
+            min: 0.0,
+            max: 1.0,
+            value: mapOptions.goal
+          },
+          {
+            name: 'Min Room Size',
+            type: 'int',
+            id: 'minSize',
+            min: 2,
+            max: 8,
+            value: mapOptions.minSize
+          },
+          {
+            name: 'Max Room Size',
+            type: 'int',
+            id: 'maxSize',
+            min: 8,
+            max: 14,
+            value: mapOptions.maxSize
+          },
+          {
+            name: 'Max Rooms',
+            type: 'int',
+            id: 'maxRooms',
+            min: 0,
+            max: 100,
+            value: mapOptions.maxRooms
+          },
+          {
+            name: 'Zones',
+            type: 'int',
+            id: 'zones',
+            min: 0,
+            max: 20,
+            value: mapOptions.zones
+          },
+          {
+            name: 'Boss Room',
+            type: 'bool',
+            id: 'bossRoom',
+            value: mapOptions.bossRoom
           }
         ],
         []
@@ -138,15 +211,20 @@ class App extends React.Component {
   onChange(option, value) {
     if (value !== option.value) {
       this.setOption(option, value);
-      this.forceUpdate();
     }
   }
 
   setOption(option, value) {
+    option.value = value;
+    if (option.id) {
+      const mapOptions = Object.assign({}, this.state.mapOptions);
+      mapOptions[option.id] = value;
+      this.setState({ mapOptions });
+    }
   }
 
   updateMap() {
-    let map = generateDungeon({ width: 112, height: 63, goal: 0.25, zones: 20, minSize: 4, maxSize: 10 });
+    const map = generateDungeon(this.state.mapOptions);
     const player = getPlayerStartingLocation(map);
     this.setState({
       map,
