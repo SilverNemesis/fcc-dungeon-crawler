@@ -1,6 +1,7 @@
 import React from 'react';
 import Controls from './Controls';
 import { generateDungeon, getPlayerStartingLocation } from '../lib/map';
+import { resizeViewport, drawMap } from '../lib/draw';
 
 // Take Home Projects - Build a Roguelike Dungeon Crawler Game
 // Objective: Build a CodePen.io app that is functionally similar to this: https://codepen.io/freeCodeCamp/full/apLXEJ/.
@@ -45,7 +46,7 @@ class App extends React.Component {
   }
 
   componentDidMount() {
-    this._resizeViewport();
+    resizeViewport(this.canvas);
     this.updateMap();
     window.addEventListener('resize', this.onResize);
     window.addEventListener('keydown', this.onKeyDown);
@@ -61,7 +62,7 @@ class App extends React.Component {
   }
 
   onResize() {
-    this._resizeViewport();
+    resizeViewport(this.canvas);
   }
 
   onKeyDown(event) {
@@ -120,7 +121,9 @@ class App extends React.Component {
   }
 
   onAnimationFrame() {
-    this._drawMap();
+    if (this.state && this.state.map) {
+      drawMap(this.canvas, this.state.map, this.state.player);
+    }
     this.frame = window.requestAnimationFrame(this.onAnimationFrame);
   }
 
@@ -142,13 +145,6 @@ class App extends React.Component {
   setOption(option, value) {
   }
 
-  _resizeViewport() {
-    const canvas = this.canvas;
-    const rect = canvas.getBoundingClientRect()
-    canvas.width = rect.width;
-    canvas.height = rect.height;
-  }
-
   updateMap() {
     let map = generateDungeon({ width: 112, height: 63, goal: 0.25, zones: 20, minSize: 4, maxSize: 10 });
     const player = getPlayerStartingLocation(map);
@@ -156,61 +152,6 @@ class App extends React.Component {
       map,
       player
     });
-  }
-
-  _drawMap() {
-    if (!this.state || !this.state.map) {
-      return;
-    }
-    const { width, height, data, rooms } = this.state.map;
-    const player = this.state.player;
-    const ctx = this.canvas.getContext('2d');
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    const cellWidth = Math.floor(this.canvas.width / width);
-    const cellHeight = Math.floor(this.canvas.height / height);
-    const xOffset = Math.floor((this.canvas.width - width * cellWidth) / 2);
-    const yOffset = Math.floor((this.canvas.height - height * cellHeight) / 2);
-    const colors = ['#7F0000', '#007F00', '#00007F', '#7F7F00', '#7F007F', '#007F7F', '#7F3F3F', '#3F7F3F', '#3F3F7F', '#7F7F3F', '#7F3F7F', '#3F7F7F'];
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        if (data[y][x] !== 0) {
-          if (data[y][x] <= rooms.length) {
-            const room = rooms[data[y][x] - 1];
-            if (room.group) {
-              ctx.fillStyle = colors[(room.group - 1) % colors.length];
-            } else {
-              ctx.fillStyle = '#3F3F3F';
-            }
-          } else {
-            ctx.fillStyle = '#3F3F3F';
-          }
-          ctx.fillRect(xOffset + x * cellWidth + 1, yOffset + y * cellHeight + 1, cellWidth - 2, cellHeight - 2);
-          ctx.fillStyle = '#FFFFFF';
-          ctx.font = '8px monospace';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(data[y][x].toString(), xOffset + x * cellWidth + cellWidth / 2, yOffset + y * cellHeight + cellHeight / 2);
-        }
-      }
-    }
-
-    const boss = {
-      x: Math.floor(rooms[0].x + rooms[0].width / 2),
-      y: Math.floor(rooms[0].y + rooms[0].height / 2)
-    };
-
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = '50px monospace';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('O', xOffset + boss.x * cellWidth + cellWidth / 2, yOffset + boss.y * cellHeight + cellHeight / 2);
-
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = '50px monospace';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('X', xOffset + player.x * cellWidth + cellWidth / 2, yOffset + player.y * cellHeight + cellHeight / 2);
   }
 
   render() {
