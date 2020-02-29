@@ -19,7 +19,7 @@ export function resizeViewport(canvas) {
  * @param {Player} player
  */
 export function drawMap(canvas, map, player) {
-  const { width, height, data, rooms } = map;
+  const { width, height, data, rooms, zones } = map;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -28,11 +28,25 @@ export function drawMap(canvas, map, player) {
   const xOffset = Math.floor((canvas.width - width * cellWidth) / 2);
   const yOffset = Math.floor((canvas.height - height * cellHeight) / 2);
   const colors = ['#7F0000', '#007F00', '#00007F', '#7F7F00', '#7F007F', '#007F7F', '#7F3F3F', '#3F7F3F', '#3F3F7F', '#7F7F3F', '#7F3F7F', '#3F7F7F'];
+
+  if (zones) {
+    for (let i = 0; i < zones.length; i++) {
+      const zone = zones[i];
+      ctx.fillStyle = colors[i % colors.length];
+      for (let y = 0; y < zone.height; y++) {
+        for (let x = 0; x < zone.width; x++) {
+          ctx.fillRect(xOffset + (zone.x + x) * cellWidth + Math.floor((cellWidth - 4) / 2), yOffset + (zone.y + y) * cellHeight + Math.floor((cellHeight - 4) / 2), 4, 4);
+        }
+      }
+    }
+  }
+
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       if (data[y][x] !== 0) {
+        let room = undefined;
         if (data[y][x] <= rooms.length) {
-          const room = rooms[data[y][x] - 1];
+          room = rooms[data[y][x] - 1];
           if (room.group) {
             ctx.fillStyle = colors[(room.group - 1) % colors.length];
           } else {
@@ -46,7 +60,12 @@ export function drawMap(canvas, map, player) {
         ctx.font = '8px monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(data[y][x].toString(), xOffset + x * cellWidth + cellWidth / 2, yOffset + y * cellHeight + cellHeight / 2);
+        if (room && room.zone) {
+          ctx.fillText(data[y][x].toString(), xOffset + x * cellWidth + cellWidth / 2, yOffset + y * cellHeight + cellHeight / 4);
+          ctx.fillText(room.zone.toString(), xOffset + x * cellWidth + cellWidth / 2, yOffset + y * cellHeight + cellHeight * 3 / 4);
+        } else {
+          ctx.fillText(data[y][x].toString(), xOffset + x * cellWidth + cellWidth / 2, yOffset + y * cellHeight + cellHeight / 2);
+        }
       }
     }
   }
