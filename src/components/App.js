@@ -1,4 +1,5 @@
 import React from 'react';
+import Controls from './Controls';
 import { generateDungeon, getPlayerStartingLocation } from '../lib/map';
 
 // Take Home Projects - Build a Roguelike Dungeon Crawler Game
@@ -21,16 +22,31 @@ class App extends React.Component {
     this.onKeyDown = this.onKeyDown.bind(this);
     this.onKeyUp = this.onKeyUp.bind(this);
     this.onAnimationFrame = this.onAnimationFrame.bind(this);
-    this.onClick = this.onClick.bind(this);
+    this.onClickPrevious = this.onClickPrevious.bind(this);
+    this.onClickNext = this.onClickNext.bind(this);
+    this.onChange = this.onChange.bind(this);
+    this.updateMap = this.updateMap.bind(this);
     this.keys = {};
     this.state = {
-      showOverlay: false
+      showControls: false,
+      mode: 0,
+      modes: ['Map Mode', 'Explore Mode'],
+      options: [
+        [
+          {
+            name: 'Update Map',
+            type: 'function',
+            function: this.updateMap
+          }
+        ],
+        []
+      ]
     }
   }
 
   componentDidMount() {
     this._resizeViewport();
-    this._updateMap();
+    this.updateMap();
     window.addEventListener('resize', this.onResize);
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
@@ -71,7 +87,7 @@ class App extends React.Component {
     const { map, player } = this.state;
     if (key === 'Escape') {
       this.setState({
-        showOverlay: !this.state.showOverlay
+        showControls: !this.state.showControls
       });
     }
     let dx = 0;
@@ -97,13 +113,33 @@ class App extends React.Component {
     }
   }
 
+  onCloseMenu() {
+    this.setState({
+      showControls: false
+    });
+  }
+
   onAnimationFrame() {
     this._drawMap();
     this.frame = window.requestAnimationFrame(this.onAnimationFrame);
   }
 
-  onClick() {
-    this._updateMap();
+  onClickNext() {
+    this.setState({ mode: (this.state.mode + 1) % this.state.modes.length });
+  }
+
+  onClickPrevious() {
+    this.setState({ mode: (this.state.mode + this.state.modes.length - 1) % this.state.modes.length });
+  }
+
+  onChange(option, value) {
+    if (value !== option.value) {
+      this.setOption(option, value);
+      this.forceUpdate();
+    }
+  }
+
+  setOption(option, value) {
   }
 
   _resizeViewport() {
@@ -113,8 +149,8 @@ class App extends React.Component {
     canvas.height = rect.height;
   }
 
-  _updateMap() {
-    let map = generateDungeon({ width: 107, height: 55, goal: 0.25, zones: 20, minSize: 3, maxSize: 7 });
+  updateMap() {
+    let map = generateDungeon({ width: 112, height: 63, goal: 0.25, zones: 20, minSize: 4, maxSize: 10 });
     const player = getPlayerStartingLocation(map);
     this.setState({
       map,
@@ -178,18 +214,10 @@ class App extends React.Component {
   }
 
   render() {
-    let zones = null;
-    if (this.state && this.state.map && this.state.map.zones) {
-      zones = this.state.map.zones.map((zone, key) => (<div key={key}>{JSON.stringify(zone, null, 2)}</div>))
-    }
-    let rooms = null;
-    if (this.state && this.state.map && this.state.map.rooms) {
-      rooms = this.state.map.rooms.map((room, key) => (<div key={key}>{JSON.stringify(room, null, 2)}</div>))
-    }
     return (
       <div id="screen">
         <canvas id="canvas" ref={elem => this.canvas = elem} onClick={this.onClick}></canvas>
-        <div id="overlay" hidden={!this.state.showOverlay}>{zones}{rooms}</div>
+        <Controls show={this.state.showControls} title={this.state.modes[this.state.mode]} options={this.state.options[this.state.mode]} onClickPrevious={this.onClickPrevious} onClickNext={this.onClickNext} onChange={this.onChange} />
       </div>
     );
   }

@@ -1,11 +1,28 @@
-import React from 'react'
-import ShallowRenderer from 'react-test-renderer/shallow'
-import App from './App'
+import React from "react";
+import { render, unmountComponentAtNode } from "react-dom";
+import { act } from "react-dom/test-utils";
+import pretty from "pretty";
+import App from "./App";
 
-const renderer = new ShallowRenderer();
+let container = null;
 
-it('renders correctly', () => {
-  renderer.render(<App />)
-  const tree = renderer.getRenderOutput()
-  expect(tree).toMatchSnapshot()
+beforeEach(() => {
+  container = document.createElement("div");
+  document.body.appendChild(container);
+});
+
+afterEach(() => {
+  unmountComponentAtNode(container);
+  container.remove();
+  container = null;
+});
+
+it("renders correctly", () => {
+  act(() => {
+    render(<App />, container);
+  });
+
+  expect(pretty(container.innerHTML)).toMatchInlineSnapshot(
+    `"<div id=\\"screen\\"><canvas id=\\"canvas\\" width=\\"0\\" height=\\"0\\"></canvas></div>"`
+  );
 });
