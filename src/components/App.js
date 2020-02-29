@@ -32,11 +32,11 @@ class App extends React.Component {
       width: 112,
       height: 63,
       goal: 0.25,
-      zones: 20,
+      zones: 6,
       minSize: 4,
-      maxSize: 10,
-      maxRooms: 0,
-      bossRoom: false
+      maxSize: 12,
+      maxRooms: 30,
+      bossRoom: true
     };
     this.state = {
       showControls: false,
