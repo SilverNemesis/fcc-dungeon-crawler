@@ -44,7 +44,7 @@ const BoolControl = (props) => {
 
 const IntControl = (props) => {
   function onChange(event) {
-    props.onChange(control, event.target.value);
+    props.onChange(control, Number(event.target.value));
   }
   const { control } = props;
   return (
@@ -58,7 +58,7 @@ const IntControl = (props) => {
 const FloatControl = (props) => {
   const factor = 1000;
   function onChange(event) {
-    props.onChange(control, event.target.value / factor);
+    props.onChange(control, Number(event.target.value) / factor);
   }
   const { control } = props;
   return (
