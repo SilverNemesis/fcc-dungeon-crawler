@@ -2,12 +2,22 @@
  * @fileOverview Drawing logic
  */
 
+/**
+ * Resizes the viewport to match the bouding rectangle
+ * @param {HTMLCanvasElement} canvas
+ */
 export function resizeViewport(canvas) {
   const rect = canvas.getBoundingClientRect()
   canvas.width = rect.width;
   canvas.height = rect.height;
 }
 
+/**
+ * Draws the map and the player
+ * @param {HTMLCanvasElement} canvas
+ * @param {Map} map
+ * @param {Player} player
+ */
 export function drawMap(canvas, map, player) {
   const { width, height, data, rooms } = map;
   const ctx = canvas.getContext('2d');
