@@ -1,4 +1,8 @@
-// A list of the cardinal directions
+/** 
+ * @fileOverview Map creation logic
+ */
+
+/** @constant {number} _directions - list of the cardinal directions */
 const _directions = [
   { x: 0, y: -1 },
   { x: 1, y: 0 },
