@@ -72,20 +72,28 @@ export function generateDungeon(options) {
     data
   }
 
-  _generateRooms(map, options);
+  const targetArea = _generateRooms(map, options);
 
   _sortRooms_LargestToSmallest(map.rooms);
 
   let { maxRooms } = options;
 
+  if (maxRooms === 0) {
+    maxRooms = undefined;
+  }
+
   if (zones && zones > 1) {
-    _generateZones(map, zones);
+    _generateZones(map, zones, targetArea);
     if (bossRoom) {
       const room = map.rooms[0];
       const zone = map.zones[0];
       if (room.width <= zone.width && room.height <= zone.height) {
         room.x = Math.floor(zone.x);
         room.y = Math.floor(zone.y + (zone.height - room.height) / 2);
+        room.zone = 1;
+        if (maxRooms !== undefined) {
+          maxRooms--;
+        }
       }
     }
     const placedRooms = _placeRoomsByZone(map, maxRooms);
@@ -98,6 +106,9 @@ export function generateDungeon(options) {
       if (room.width <= width - 2 && room.height <= height - 2) {
         room.x = Math.floor((width - room.width) / 2);
         room.y = Math.floor((height - room.height) / 2);
+        if (maxRooms !== undefined) {
+          maxRooms--;
+        }
       }
     }
   }
@@ -163,6 +174,7 @@ export function getPlayerStartingLocation(map) {
  * Generates rooms that may go into the dungeon
  * @param {Map} map
  * @param {Options} options
+ * @returns {number} targetArea
  */
 function _generateRooms(map, options) {
   const { width, height } = map;
@@ -186,9 +198,9 @@ function _generateRooms(map, options) {
   }
 
   let rooms = [];
-  const areaGoal = width * height * goal;
+  const targetArea = width * height * goal;
   let area = 0;
-  while (area < areaGoal) {
+  while (area < targetArea) {
     const size = _pickRandom(roomSize);
     const room = { width: size, height: size };
     if (Math.random() > 0.3) {
@@ -202,6 +214,7 @@ function _generateRooms(map, options) {
     area += room.width * room.height;
   }
   map.rooms = rooms;
+  return Math.floor(width * height * Math.min(goal * 1.5, 1.0));
 }
 
 /**
@@ -209,7 +222,7 @@ function _generateRooms(map, options) {
  * @param {Map} map
  * @param {number} count - the number of zones to generate
  */
-function _generateZones(map, count) {
+function _generateZones(map, count, targetArea) {
   const { width, height } = map;
   const loc = [];
   for (let i = 0; i < count; i++) {
@@ -228,60 +241,158 @@ function _generateZones(map, count) {
     zones.push(zone);
   }
 
+  let totalArea = 0;
+  for (let i = 0; i < count; i++) {
+    const zone = zones[i];
+    totalArea += zone.width * zone.height;
+  }
+
+  let growth = true;
+
+  while (totalArea < targetArea && growth) {
+    growth = false;
+    for (let i = 0; i < count; i++) {
+      const dirs = [];
+      const zone = zones[i];
+      if (zone.y > 1 && _canZoneGrow(zone.x, zone.y - 1, zone.width, zone.height + 1, i, zones)) {
+        dirs.push('up');
+      }
+      if (zone.y + zone.height < height - 2 && _canZoneGrow(zone.x, zone.y, zone.width, zone.height + 1, i, zones)) {
+        dirs.push('down');
+      }
+      if (zone.x > 1 && _canZoneGrow(zone.x - 1, zone.y, zone.width + 1, zone.height, i, zones)) {
+        dirs.push('left');
+      }
+      if (zone.x + zone.width < width - 2 && _canZoneGrow(zone.x, zone.y, zone.width + 1, zone.height, i, zones)) {
+        dirs.push('right');
+      }
+      if (dirs.length > 0) {
+        growth = true;
+        const dir = _pickRandom(dirs);
+        switch (dir) {
+          case 'up':
+            zone.y--;
+            zone.height++;
+            totalArea += zone.width;
+            break;
+          case 'down':
+            zone.height++;
+            totalArea += zone.width;
+            break;
+          case 'left':
+            zone.x--;
+            zone.width++;
+            totalArea += zone.height;
+            break;
+          case 'right':
+            zone.width++;
+            totalArea += zone.height;
+            break;
+          default:
+        }
+      }
+    }
+  }
+
   map.zones = zones;
 }
 
 /**
- * Places rooms across the zones of a dungeon
+ * Checks if a zone can grow
+ * @param {number} x
+ * @param {number} y
+ * @param {number} w
+ * @param {number} h
+ * @param {number} index
+ * @param {Zone} zone
+ * @returns {boolean} whether or not the zone can grow
+ */
+function _canZoneGrow(x, y, w, h, index, zones) {
+  for (let j = 0; j < zones.length; j++) {
+    if (j === index) {
+      continue;
+    }
+    if (_doZonesOverlap(x, y, w, h, zones[j])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Checks if zones overlap
+ * @param {number} x
+ * @param {number} y
+ * @param {number} w
+ * @param {number} h
+ * @param {Zone} zone
+ * @returns {boolean} whether or not the zones overlap
+ */
+function _doZonesOverlap(x, y, w, h, zone) {
+  if (x >= zone.x + zone.width || zone.x >= x + w) {
+    return false;
+  }
+  if (y >= zone.y + zone.height || zone.y >= y + h) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Places rooms within the zones of a dungeon
  * @param {Map} map
  * @param {number} maxRooms - the maximum number of rooms to place
  */
 function _placeRoomsByZone(map, maxRooms) {
-  const { width, height, rooms, zones } = map;
+  const { rooms, zones } = map;
 
   let placedRooms = 0;
-  let zone = 0;
-  const roomCount = rooms.length;
-  for (let i = 0; i < roomCount; i++) {
-    if (maxRooms && placedRooms === maxRooms) {
-      break;
-    }
-    const room = rooms[i];
-    if (room.hasOwnProperty('x') && room.hasOwnProperty('y')) {
-      continue;
-    }
-    const minX = zones[zone].x;
-    const maxX = Math.min(zones[zone].x + zones[zone].width, width - room.width - 1);
-    const minY = zones[zone].y;
-    const maxY = Math.min(zones[zone].y + zones[zone].height, height - room.height - 1);
-    if (minX + room.width > width - 1 || minY + room.height > height - 1) {
-      continue;
-    }
-    let isPlaced = false;
-    for (let t = 0; t < 100; t++) {
-      room.x = _range(minX, maxX);
-      room.y = _range(minY, maxY);
-      let overlap = false;
-      for (let j = 0; j < roomCount; j++) {
-        if (j === i || !rooms[j].hasOwnProperty('x') || !rooms[j].hasOwnProperty('y')) {
-          continue;
+  for (let zoneIndex = 0; zoneIndex < zones.length; zoneIndex++) {
+    let zonedRooms = 0;
+    const zone = zones[zoneIndex];
+    const roomCount = rooms.length;
+    for (let roomIndex = 0; roomIndex < roomCount; roomIndex++) {
+      if (maxRooms !== undefined && (placedRooms >= maxRooms || zonedRooms >= Math.floor(maxRooms / zones.length))) {
+        break;
+      }
+      const room = rooms[roomIndex];
+      if (room.hasOwnProperty('x') && room.hasOwnProperty('y')) {
+        continue;
+      }
+      const minX = zone.x;
+      const maxX = zone.x + zone.width - room.width;
+      const minY = zone.y;
+      const maxY = zone.y + zone.height - room.height;
+      if (maxX < minX || maxY < minY) {
+        continue;
+      }
+      let isPlaced = false;
+      for (let t = 0; t < 100; t++) {
+        room.x = _range(minX, maxX);
+        room.y = _range(minY, maxY);
+        let overlap = false;
+        for (let j = 0; j < roomCount; j++) {
+          if (j === roomIndex || !rooms[j].hasOwnProperty('x') || !rooms[j].hasOwnProperty('y')) {
+            continue;
+          }
+          if (_doRoomsOverlap(room, rooms[j], 1, 1)) {
+            overlap = true;
+            break;
+          }
         }
-        if (_doRoomsOverlap(room, rooms[j], 1, 1)) {
-          overlap = true;
+        if (!overlap) {
+          isPlaced = true;
           break;
         }
       }
-      if (!overlap) {
-        isPlaced = true;
-        break;
+      if (isPlaced) {
+        room.zone = zoneIndex + 1;
+        zonedRooms++;
+        placedRooms++;
+      } else {
+        delete room.x;
+        delete room.y;
       }
-    }
-    if (isPlaced) {
-      placedRooms++;
-      zone = (zone + 1) % zones.length;
-    } else {
-      delete room.x;
-      delete room.y;
     }
   }
 
